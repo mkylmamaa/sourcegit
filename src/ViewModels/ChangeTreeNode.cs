@@ -17,6 +17,16 @@ namespace SourceGit.ViewModels
             get => Change != null && (Change.WorkTree != Models.ChangeState.None || Change.Index != Models.ChangeState.None);
         }
 
+        public bool IsLocked
+        {
+            get => Change != null && Change.LockedBy.Length > 0;
+        }
+
+        public string LockedBy
+        {
+            get => Change != null ? Change.LockedBy : "";
+        }
+
         public bool IsFolder
         {
             get => Change == null;

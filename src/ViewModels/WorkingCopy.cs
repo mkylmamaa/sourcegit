@@ -59,6 +59,19 @@ namespace SourceGit.ViewModels
             }
         }
 
+        public bool ShowLocks
+        {
+            get => _repo.ShowLocks;
+            set
+            {
+                if (_repo.ShowLocks != value)
+                {
+                    _repo.ShowLocks = value;
+                    OnPropertyChanged();
+                }
+            }
+        }
+
         public bool CanCommitWithPush
         {
             get => _canCommitWithPush;
@@ -265,7 +278,10 @@ namespace SourceGit.ViewModels
                 return;
             }
 
-            _cached = changes;
+            _cached = new List<Models.Change>(changes);
+            foreach (var c in changes)
+                _cached.Add(c);
+
             _count = _cached.Count;
 
             var lastSelectedUnstaged = new HashSet<string>();
@@ -1526,11 +1542,11 @@ namespace SourceGit.ViewModels
 
             var oldSet = new HashSet<string>();
             foreach (var c in old)
-                oldSet.Add($"{c.Path}\n{c.WorkTree}\n{c.Index}");
+                oldSet.Add($"{c.Path}\n{c.WorkTree}\n{c.Index}\n{c.LockedBy}");
 
             foreach (var c in cur)
             {
-                if (!oldSet.Contains($"{c.Path}\n{c.WorkTree}\n{c.Index}"))
+                if (!oldSet.Contains($"{c.Path}\n{c.WorkTree}\n{c.Index}\n{c.LockedBy}"))
                     return true;
             }
 

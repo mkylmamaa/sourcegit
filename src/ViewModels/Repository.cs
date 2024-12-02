@@ -224,6 +224,16 @@ namespace SourceGit.ViewModels
             }
         }
 
+        public bool ShowLocks
+        {
+            get => _showLocks;
+            set
+            {
+                if (SetProperty(ref _showLocks, value))
+                    Task.Run(RefreshWorkingCopyLocks);
+            }
+        }
+
         public bool IsSearching
         {
             get => _isSearching;
@@ -484,6 +494,7 @@ namespace SourceGit.ViewModels
             Task.Run(RefreshSubmodules);
             Task.Run(RefreshWorktrees);
             Task.Run(RefreshWorkingCopyChanges);
+            Task.Run(RefreshWorkingCopyLocks);
             Task.Run(RefreshStashes);
         }
 
@@ -663,6 +674,7 @@ namespace SourceGit.ViewModels
                 Task.Run(RefreshBranches);
                 Task.Run(RefreshCommits);
                 Task.Run(RefreshWorkingCopyChanges);
+                Task.Run(RefreshWorkingCopyLocks);
                 Task.Run(RefreshWorktrees);
             }
             else
@@ -674,9 +686,14 @@ namespace SourceGit.ViewModels
         public void MarkWorkingCopyDirtyManually()
         {
             if (_watcher == null)
+            {
                 Task.Run(RefreshWorkingCopyChanges);
+                Task.Run(RefreshWorkingCopyLocks);
+            }
             else
+            {
                 _watcher.MarkWorkingCopyDirtyManually();
+            }
         }
 
         public void MarkFetched()
@@ -896,24 +913,64 @@ namespace SourceGit.ViewModels
             if (_workingCopy == null)
                 return;
 
-            var merged = null as List<Models.Change>;
-
             if (_listFiles) 
             {
                 var files = new Commands.ListLocalFiles(_fullpath).Result();
                 var changes = new Commands.QueryLocalChanges(_fullpath, _includeUntracked).Result();
-                merged = MergeFileLists(files, changes);
+                _visibleChanges = MergeFileLists(files, changes);
             }
             else
             {
-                merged = new Commands.QueryLocalChanges(_fullpath, _includeUntracked).Result();
+                _visibleChanges = new Commands.QueryLocalChanges(_fullpath, _includeUntracked).Result();
             }
 
-            _workingCopy.SetData(merged);
+            foreach (var lfsLock in _visibleLocks)
+            {
+                var change = _visibleChanges.Find(x => x.Path == lfsLock.File);
+                if (change != null)
+                    change.LockedBy = lfsLock.User;
+            }
+
+            _workingCopy.SetData(_visibleChanges);
 
             Dispatcher.UIThread.Invoke(() =>
             {
-                LocalChangesCount = merged.Count;
+                LocalChangesCount = _visibleChanges.Count;
+                OnPropertyChanged(nameof(InProgressContext));
+            });
+        }
+
+        public void RefreshWorkingCopyLocks()
+        {
+            if (_showLocks && _remotes.Count > 0)
+            {
+                _visibleLocks = new Commands.LFS(_fullpath).Locks(_remotes[0].Name);
+            }
+            else
+            {
+                _visibleLocks.Clear();
+            }
+
+            foreach (var change in _visibleChanges)
+                change.LockedBy = "";
+
+            foreach (var lfsLock in _visibleLocks)
+            {
+                var change = _visibleChanges.Find(x => x.Path == lfsLock.File);
+                if (change != null)
+                    change.LockedBy = lfsLock.User;
+                else
+                {
+                    Console.WriteLine($"Lock found for non-existing file: {lfsLock.File}");
+                    foreach (var c in _visibleChanges)
+                        Console.WriteLine($"  {c.Path}");
+                }
+            }
+
+            _workingCopy.SetData(_visibleChanges);
+
+            Dispatcher.UIThread.Invoke(() =>
+            {
                 OnPropertyChanged(nameof(InProgressContext));
             });
         }
@@ -2281,6 +2338,10 @@ namespace SourceGit.ViewModels
         private List<Models.Tag> _visibleTags = new List<Models.Tag>();
         private List<Models.Submodule> _submodules = new List<Models.Submodule>();
         private List<Models.Submodule> _visibleSubmodules = new List<Models.Submodule>();
+
+        private bool _showLocks = false;
+        private List<Models.LFSLock> _visibleLocks = new List<Models.LFSLock>();
+        private List<Models.Change> _visibleChanges = new List<Models.Change>();
 
         private bool _includeUntracked = true;
         private bool _listFiles = false;
