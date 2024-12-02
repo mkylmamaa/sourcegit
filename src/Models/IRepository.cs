@@ -11,6 +11,7 @@
         void RefreshCommits();
         void RefreshSubmodules();
         void RefreshWorkingCopyChanges();
+        void RefreshWorkingCopyLocks();
         void RefreshStashes();
     }
 }

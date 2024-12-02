@@ -119,6 +119,7 @@ namespace SourceGit.Models
                 Task.Run(_repo.RefreshBranches);
                 Task.Run(_repo.RefreshCommits);
                 Task.Run(_repo.RefreshWorkingCopyChanges);
+                Task.Run(_repo.RefreshWorkingCopyLocks);
                 Task.Run(_repo.RefreshWorktrees);
             }
 
@@ -126,6 +127,7 @@ namespace SourceGit.Models
             {
                 _updateWC = 0;
                 Task.Run(_repo.RefreshWorkingCopyChanges);
+                Task.Run(_repo.RefreshWorkingCopyLocks);
             }
 
             if (_updateSubmodules > 0 && now > _updateSubmodules)

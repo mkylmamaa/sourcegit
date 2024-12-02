@@ -959,12 +959,6 @@ namespace SourceGit.ViewModels
                 var change = _visibleChanges.Find(x => x.Path == lfsLock.File);
                 if (change != null)
                     change.LockedBy = lfsLock.User;
-                else
-                {
-                    Console.WriteLine($"Lock found for non-existing file: {lfsLock.File}");
-                    foreach (var c in _visibleChanges)
-                        Console.WriteLine($"  {c.Path}");
-                }
             }
 
             _workingCopy.SetData(_visibleChanges);

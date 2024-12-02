@@ -761,7 +761,10 @@ namespace SourceGit.ViewModels
                             {
                                 var succ = await Task.Run(() => new Commands.LFS(_repo.FullPath).Track(filename, true));
                                 if (succ)
+                                {
+                                    _repo.MarkWorkingCopyDirtyManually();
                                     App.SendNotification(_repo.FullPath, $"Tracking file named {filename} successfully!");
+                                }
 
                                 e.Handled = true;
                             };
@@ -775,7 +778,10 @@ namespace SourceGit.ViewModels
                                 {
                                     var succ = await Task.Run(() => new Commands.LFS(_repo.FullPath).Track("*" + extension));
                                     if (succ)
+                                    {
+                                        _repo.MarkWorkingCopyDirtyManually();
                                         App.SendNotification(_repo.FullPath, $"Tracking all *{extension} files successfully!");
+                                    }
 
                                     e.Handled = true;
                                 };
@@ -795,7 +801,10 @@ namespace SourceGit.ViewModels
                             {
                                 var succ = await Task.Run(() => new Commands.LFS(_repo.FullPath).Lock(_repo.Remotes[0].Name, change.Path));
                                 if (succ)
+                                {
+                                    _repo.MarkWorkingCopyDirtyManually();
                                     App.SendNotification(_repo.FullPath, $"Lock file \"{change.Path}\" successfully!");
+                                }
 
                                 e.Handled = true;
                             };
@@ -811,7 +820,10 @@ namespace SourceGit.ViewModels
                                 {
                                     var succ = await Task.Run(() => new Commands.LFS(_repo.FullPath).Lock(remoteName, change.Path));
                                     if (succ)
+                                    {
+                                        _repo.MarkWorkingCopyDirtyManually();
                                         App.SendNotification(_repo.FullPath, $"Lock file \"{change.Path}\" successfully!");
+                                    }
 
                                     e.Handled = true;
                                 };
@@ -830,7 +842,10 @@ namespace SourceGit.ViewModels
                             {
                                 var succ = await Task.Run(() => new Commands.LFS(_repo.FullPath).Unlock(_repo.Remotes[0].Name, change.Path, false));
                                 if (succ)
+                                {
+                                    _repo.MarkWorkingCopyDirtyManually();
                                     App.SendNotification(_repo.FullPath, $"Unlock file \"{change.Path}\" successfully!");
+                                }
 
                                 e.Handled = true;
                             };
@@ -846,7 +861,10 @@ namespace SourceGit.ViewModels
                                 {
                                     var succ = await Task.Run(() => new Commands.LFS(_repo.FullPath).Unlock(remoteName, change.Path, false));
                                     if (succ)
+                                    {
+                                        _repo.MarkWorkingCopyDirtyManually();
                                         App.SendNotification(_repo.FullPath, $"Unlock file \"{change.Path}\" successfully!");
+                                    }
 
                                     e.Handled = true;
                                 };
@@ -1140,7 +1158,10 @@ namespace SourceGit.ViewModels
                         {
                             var succ = await Task.Run(() => new Commands.LFS(_repo.FullPath).Lock(_repo.Remotes[0].Name, change.Path));
                             if (succ)
+                            {
+                                _repo.MarkWorkingCopyDirtyManually();
                                 App.SendNotification(_repo.FullPath, $"Lock file \"{change.Path}\" successfully!");
+                            }
 
                             e.Handled = true;
                         };
@@ -1156,7 +1177,10 @@ namespace SourceGit.ViewModels
                             {
                                 var succ = await Task.Run(() => new Commands.LFS(_repo.FullPath).Lock(remoteName, change.Path));
                                 if (succ)
+                                {
+                                    _repo.MarkWorkingCopyDirtyManually();
                                     App.SendNotification(_repo.FullPath, $"Lock file \"{change.Path}\" successfully!");
+                                }
 
                                 e.Handled = true;
                             };
@@ -1175,7 +1199,10 @@ namespace SourceGit.ViewModels
                         {
                             var succ = await Task.Run(() => new Commands.LFS(_repo.FullPath).Unlock(_repo.Remotes[0].Name, change.Path, false));
                             if (succ)
+                            {
+                                _repo.MarkWorkingCopyDirtyManually();
                                 App.SendNotification(_repo.FullPath, $"Unlock file \"{change.Path}\" successfully!");
+                            }
 
                             e.Handled = true;
                         };
@@ -1191,7 +1218,10 @@ namespace SourceGit.ViewModels
                             {
                                 var succ = await Task.Run(() => new Commands.LFS(_repo.FullPath).Unlock(remoteName, change.Path, false));
                                 if (succ)
+                                {
+                                    _repo.MarkWorkingCopyDirtyManually();
                                     App.SendNotification(_repo.FullPath, $"Unlock file \"{change.Path}\" successfully!");
+                                }
 
                                 e.Handled = true;
                             };
