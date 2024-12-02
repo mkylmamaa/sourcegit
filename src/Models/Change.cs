@@ -37,6 +37,16 @@ namespace SourceGit.Models
         public ChangeDataForAmend DataForAmend { get; set; } = null;
         public string LockedBy { get; set; } = "";
 
+        public bool HasChanged
+        {
+            get => WorkTree != ChangeState.None || Index != ChangeState.None;
+        }
+
+        public bool IsLocked
+        {
+            get => LockedBy.Length > 0;
+        }
+
         public bool IsConflit
         {
             get
