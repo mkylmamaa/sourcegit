@@ -214,6 +214,16 @@ namespace SourceGit.ViewModels
             }
         }
 
+        public bool ListFiles
+        {
+            get => _listFiles;
+            set
+            {
+                if (SetProperty(ref _listFiles, value))
+                    Task.Run(RefreshWorkingCopyChanges);
+            }
+        }
+
         public bool IsSearching
         {
             get => _isSearching;
@@ -866,17 +876,44 @@ namespace SourceGit.ViewModels
             });
         }
 
+        public List<Models.Change> MergeFileLists(List<Models.Change> files, List<Models.Change> changes)
+        {
+            var dict = new Dictionary<string, Models.Change>(StringComparer.OrdinalIgnoreCase);
+            foreach (var file in files)
+                dict[file.Path] = file;
+            foreach (var change in changes)
+                dict[change.Path] = change;
+
+            List<Models.Change> merged = new List<Models.Change>();
+            foreach (var file in dict.Values)
+                merged.Add(file);
+
+            return merged;
+        }
+
         public void RefreshWorkingCopyChanges()
         {
-            var changes = new Commands.QueryLocalChanges(_fullpath, _includeUntracked).Result();
             if (_workingCopy == null)
                 return;
 
-            _workingCopy.SetData(changes);
+            var merged = null as List<Models.Change>;
+
+            if (_listFiles) 
+            {
+                var files = new Commands.ListLocalFiles(_fullpath).Result();
+                var changes = new Commands.QueryLocalChanges(_fullpath, _includeUntracked).Result();
+                merged = MergeFileLists(files, changes);
+            }
+            else
+            {
+                merged = new Commands.QueryLocalChanges(_fullpath, _includeUntracked).Result();
+            }
+
+            _workingCopy.SetData(merged);
 
             Dispatcher.UIThread.Invoke(() =>
             {
-                LocalChangesCount = changes.Count;
+                LocalChangesCount = merged.Count;
                 OnPropertyChanged(nameof(InProgressContext));
             });
         }
@@ -2246,6 +2283,7 @@ namespace SourceGit.ViewModels
         private List<Models.Submodule> _visibleSubmodules = new List<Models.Submodule>();
 
         private bool _includeUntracked = true;
+        private bool _listFiles = false;
         private Models.Commit _searchResultSelectedCommit = null;
         private Timer _autoFetchTimer = null;
         private DateTime _lastFetchTime = DateTime.MinValue;

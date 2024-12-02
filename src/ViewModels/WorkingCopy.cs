@@ -46,6 +46,19 @@ namespace SourceGit.ViewModels
             }
         }
 
+        public bool ListFiles
+        {
+            get => _repo.ListFiles;
+            set
+            {
+                if (_repo.ListFiles != value)
+                {
+                    _repo.ListFiles = value;
+                    OnPropertyChanged();
+                }
+            }
+        }
+
         public bool CanCommitWithPush
         {
             get => _canCommitWithPush;
@@ -273,7 +286,7 @@ namespace SourceGit.ViewModels
             var hasConflict = false;
             foreach (var c in changes)
             {
-                if (c.WorkTree != Models.ChangeState.None)
+                //if (c.WorkTree != Models.ChangeState.None)
                 {
                     unstaged.Add(c);
                     hasConflict |= c.IsConflit;

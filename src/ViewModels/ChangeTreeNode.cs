@@ -12,6 +12,11 @@ namespace SourceGit.ViewModels
         public Models.Change Change { get; set; } = null;
         public List<ChangeTreeNode> Children { get; set; } = new List<ChangeTreeNode>();
 
+        public bool HasChanged
+        {
+            get => Change != null && (Change.WorkTree != Models.ChangeState.None || Change.Index != Models.ChangeState.None);
+        }
+
         public bool IsFolder
         {
             get => Change == null;
