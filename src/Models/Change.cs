@@ -28,7 +28,7 @@ namespace SourceGit.Models
         public string ObjectHash { get; set; } = "";
     }
 
-    public class Change
+    public class Change : ICloneable
     {
         public ChangeState Index { get; set; } = ChangeState.None;
         public ChangeState WorkTree { get; set; } = ChangeState.None;
@@ -36,6 +36,19 @@ namespace SourceGit.Models
         public string OriginalPath { get; set; } = "";
         public ChangeDataForAmend DataForAmend { get; set; } = null;
         public string LockedBy { get; set; } = "";
+
+        public object Clone()
+        {
+            return new Change
+            {
+                Index = this.Index,
+                WorkTree = this.WorkTree,
+                Path = this.Path,
+                OriginalPath = this.OriginalPath,
+                DataForAmend = this.DataForAmend,
+                LockedBy = this.LockedBy
+            };
+        }
 
         public bool HasChanged
         {

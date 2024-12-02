@@ -280,7 +280,7 @@ namespace SourceGit.ViewModels
 
             _cached = new List<Models.Change>();
             foreach (var c in changes)
-                _cached.Add(c);
+                _cached.Add((Models.Change)c.Clone());
 
             _count = _cached.Count;
 
