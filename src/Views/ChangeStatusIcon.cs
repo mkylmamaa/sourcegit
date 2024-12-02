@@ -82,9 +82,25 @@ namespace SourceGit.Views
             set => SetValue(ChangeProperty, value);
         }
 
+        public bool IsVisibleInCurrentView
+        {
+            get => (Change != null) && (IsUnstagedChange ? Change.WorkTree != Models.ChangeState.None : Change.Index != Models.ChangeState.None);
+        }
+
+        protected override Size MeasureCore(Size availableSize)
+        {
+            if (!IsVisibleInCurrentView)
+                return new Size(0, 0);
+
+            return base.MeasureCore(availableSize);
+        }
+
         public override void Render(DrawingContext context)
         {
             if (Change == null || Bounds.Width <= 0)
+                return;
+
+            if (!IsVisibleInCurrentView)
                 return;
 
             var typeface = new Typeface("fonts:SourceGit#JetBrains Mono");

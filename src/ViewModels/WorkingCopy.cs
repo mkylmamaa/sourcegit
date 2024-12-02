@@ -278,7 +278,7 @@ namespace SourceGit.ViewModels
                 return;
             }
 
-            _cached = new List<Models.Change>(changes);
+            _cached = new List<Models.Change>();
             foreach (var c in changes)
                 _cached.Add(c);
 
@@ -300,9 +300,10 @@ namespace SourceGit.ViewModels
             var unstaged = new List<Models.Change>();
             var selectedUnstaged = new List<Models.Change>();
             var hasConflict = false;
+            var listFiles = _repo.ListFiles;
             foreach (var c in changes)
             {
-                //if (c.WorkTree != Models.ChangeState.None)
+                if (c.WorkTree != Models.ChangeState.None || listFiles)
                 {
                     unstaged.Add(c);
                     hasConflict |= c.IsConflit;
@@ -385,7 +386,13 @@ namespace SourceGit.ViewModels
 
         public void StageAll()
         {
-            StageChanges(_unstaged, null);
+            var stage = new List<Models.Change>();
+            foreach (var c in _unstaged)
+            {
+                if (c.WorkTree != Models.ChangeState.Untracked)
+                    stage.Add(c);
+            }
+            StageChanges(stage, null);
         }
 
         public async void StageChanges(List<Models.Change> changes, Models.Change next)
