@@ -905,6 +905,11 @@ namespace SourceGit.ViewModels
             foreach (var file in dict.Values)
                 merged.Add(file);
 
+            merged.Sort((l, r) =>
+            {
+                return string.Compare(l.Path, r.Path, StringComparison.Ordinal);
+            });
+
             return merged;
         }
 

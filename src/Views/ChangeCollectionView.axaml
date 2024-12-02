@@ -93,6 +93,7 @@
                                   Width="14" Height="14"
                                   Margin="4,0,0,0"
                                   IsUnstagedChange="{Binding #ThisControl.IsUnstagedChange}"
+                                  IsVisible="{Binding HasChanged}"
                                   Change="{Binding}" />
 
               <TextBlock Grid.Column="2"
@@ -130,6 +131,7 @@
                                   Width="14" Height="14"
                                   Margin="4,0,0,0"
                                   IsUnstagedChange="{Binding #ThisControl.IsUnstagedChange}"
+                                  IsVisible="{Binding HasChanged}"
                                   Change="{Binding}" />
 
               <TextBlock Grid.Column="2"
