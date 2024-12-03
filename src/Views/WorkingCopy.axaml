@@ -41,8 +41,8 @@
             <ToggleButton Grid.Column="6"
                           Classes="toggle_listfiles"
                           Width="26" Height="14"
-                          ToolTip.Tip="{DynamicResource Text.WorkingCopy.ListFiles}"
-                          IsChecked="{Binding ListFiles, Mode=TwoWay}"/>
+                          ToolTip.Tip="{DynamicResource Text.WorkingCopy.ListLocalFiles}"
+                          IsChecked="{Binding ListLocalFiles, Mode=TwoWay}"/>
             <Button Grid.Column="7"
                     Classes="icon_button"
                     Width="26" Height="14"
