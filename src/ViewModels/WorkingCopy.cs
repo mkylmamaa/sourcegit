@@ -389,7 +389,7 @@ namespace SourceGit.ViewModels
             var stage = new List<Models.Change>();
             foreach (var c in _unstaged)
             {
-                if (c.WorkTree != Models.ChangeState.Untracked)
+                if (c.WorkTree != Models.ChangeState.None)
                     stage.Add(c);
             }
             StageChanges(stage, null);
