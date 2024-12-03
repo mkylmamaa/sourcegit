@@ -94,6 +94,12 @@ namespace SourceGit.ViewModels
             private set => SetProperty(ref _inProgressContext, value);
         }
 
+        public bool IsRefreshing
+        {
+            get => _isRefreshing;
+            private set => SetProperty(ref _isRefreshing, value);
+        }
+
         public bool IsStaging
         {
             get => _isStaging;
@@ -238,6 +244,14 @@ namespace SourceGit.ViewModels
         public WorkingCopy(Repository repo)
         {
             _repo = repo;
+            _repo.PropertyChanged += (_, _) => {
+                OnRepoRefreshing();
+            };
+        }
+
+        private void OnRepoRefreshing()
+        {
+            IsRefreshing = _repo.RefreshingViewsCount > 0;
         }
 
         public void Cleanup()
@@ -1625,6 +1639,7 @@ namespace SourceGit.ViewModels
 
         private Repository _repo = null;
         private bool _isLoadingData = false;
+        private bool _isRefreshing = false;
         private bool _isStaging = false;
         private bool _isUnstaging = false;
         private bool _isCommitting = false;

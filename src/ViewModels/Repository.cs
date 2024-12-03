@@ -18,6 +18,16 @@ namespace SourceGit.ViewModels
 {
     public class Repository : ObservableObject, Models.IRepository
     {
+        public int RefreshingViewsCount
+        {
+            get => _refreshingViewsCount;
+            set
+            {
+                _refreshingViewsCount = value;
+                OnPropertyChanged(nameof(RefreshingViewsCount));
+            }
+        }
+
         public string FullPath
         {
             get => _fullpath;
@@ -918,6 +928,8 @@ namespace SourceGit.ViewModels
             if (_workingCopy == null)
                 return;
 
+            ++RefreshingViewsCount;
+
             if (_listLocalFiles) 
             {
                 var files = new Commands.ListLocalFiles(_fullpath).Result();
@@ -936,6 +948,8 @@ namespace SourceGit.ViewModels
                     change.LockedBy = lfsLock.User;
             }
 
+            --RefreshingViewsCount;
+
             _workingCopy.SetData(_visibleChanges);
 
             Dispatcher.UIThread.Invoke(() =>
@@ -953,6 +967,8 @@ namespace SourceGit.ViewModels
 
         public void RefreshWorkingCopyLocks()
         {
+            ++RefreshingViewsCount;
+
             if (_showLocks && _remotes.Count > 0)
             {
                 _visibleLocks = new Commands.LFS(_fullpath).Locks(_remotes[0].Name);
@@ -971,6 +987,8 @@ namespace SourceGit.ViewModels
                 if (change != null)
                     change.LockedBy = lfsLock.User;
             }
+
+            --RefreshingViewsCount;
 
             _workingCopy.SetData(_visibleChanges);
 
@@ -2347,6 +2365,7 @@ namespace SourceGit.ViewModels
         private bool _showLocks = false;
         private List<Models.LFSLock> _visibleLocks = new List<Models.LFSLock>();
         private List<Models.Change> _visibleChanges = new List<Models.Change>();
+        private int _refreshingViewsCount = 0;
 
         private bool _includeUntracked = true;
         private bool _listLocalFiles = false;
