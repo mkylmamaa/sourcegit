@@ -214,12 +214,12 @@ namespace SourceGit.ViewModels
             }
         }
 
-        public bool ListFiles
+        public bool ListLocalFiles
         {
-            get => _listFiles;
+            get => _listLocalFiles;
             set
             {
-                if (SetProperty(ref _listFiles, value))
+                if (SetProperty(ref _listLocalFiles, value))
                     Task.Run(RefreshWorkingCopyChanges);
             }
         }
@@ -918,7 +918,7 @@ namespace SourceGit.ViewModels
             if (_workingCopy == null)
                 return;
 
-            if (_listFiles) 
+            if (_listLocalFiles) 
             {
                 var files = new Commands.ListLocalFiles(_fullpath).Result();
                 var changes = new Commands.QueryLocalChanges(_fullpath, _includeUntracked).Result();
@@ -2349,7 +2349,7 @@ namespace SourceGit.ViewModels
         private List<Models.Change> _visibleChanges = new List<Models.Change>();
 
         private bool _includeUntracked = true;
-        private bool _listFiles = false;
+        private bool _listLocalFiles = false;
         private Models.Commit _searchResultSelectedCommit = null;
         private Timer _autoFetchTimer = null;
         private DateTime _lastFetchTime = DateTime.MinValue;

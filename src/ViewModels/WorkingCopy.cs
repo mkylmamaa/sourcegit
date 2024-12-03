@@ -46,14 +46,14 @@ namespace SourceGit.ViewModels
             }
         }
 
-        public bool ListFiles
+        public bool ListLocalFiles
         {
-            get => _repo.ListFiles;
+            get => _repo.ListLocalFiles;
             set
             {
-                if (_repo.ListFiles != value)
+                if (_repo.ListLocalFiles != value)
                 {
-                    _repo.ListFiles = value;
+                    _repo.ListLocalFiles = value;
                     OnPropertyChanged();
                 }
             }
@@ -149,6 +149,20 @@ namespace SourceGit.ViewModels
         {
             get => _unstaged;
             private set => SetProperty(ref _unstaged, value);
+        }
+
+        public int UnstagedChangesCount
+        {
+            get
+            {
+                var count = 0;
+                foreach (var c in _unstaged)
+                {
+                    if (c.WorkTree != Models.ChangeState.None)
+                        count++;
+                }
+                return count;
+            }
         }
 
         public List<Models.Change> Staged
@@ -300,10 +314,10 @@ namespace SourceGit.ViewModels
             var unstaged = new List<Models.Change>();
             var selectedUnstaged = new List<Models.Change>();
             var hasConflict = false;
-            var listFiles = _repo.ListFiles;
+            var listLocalFiles = _repo.ListLocalFiles;
             foreach (var c in changes)
             {
-                if (c.WorkTree != Models.ChangeState.None || listFiles)
+                if (c.WorkTree != Models.ChangeState.None || listLocalFiles)
                 {
                     unstaged.Add(c);
                     hasConflict |= c.IsConflit;
