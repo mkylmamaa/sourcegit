@@ -940,7 +940,13 @@ namespace SourceGit.ViewModels
 
             Dispatcher.UIThread.Invoke(() =>
             {
-                LocalChangesCount = _visibleChanges.Count;
+                int changesCount = 0;
+                foreach (var change in _visibleChanges)
+                {
+                    if (change.HasChanged)
+                        ++changesCount;
+                }
+                LocalChangesCount = changesCount;
                 OnPropertyChanged(nameof(InProgressContext));
             });
         }
