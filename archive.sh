@@ -5,7 +5,7 @@ fi
 
 ZIP_NAME=$2
 if [ -z "$ZIP_NAME" ]; then
-    ZIP_NAME="SuperSourceGit.zip"
+    ZIP_NAME="SuperSourceGit_Mac_ARM64.zip"
 fi
 
 echo "$0 $DESTINATION_FOLDER $ZIP_NAME"
