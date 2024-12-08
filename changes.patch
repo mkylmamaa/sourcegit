@@ -1,0 +1,964 @@
+diff --git a/archive.sh b/archive.sh
+new file mode 100755
+index 00000000..ee38ebeb
+--- /dev/null
++++ b/archive.sh
+@@ -0,0 +1,18 @@
++DESTINATION_FOLDER=$1
++if [ -z "$DESTINATION_FOLDER" ]; then
++    DESTINATION_FOLDER="bin/osx-arm64/Release"
++fi
++
++ZIP_NAME=$2
++if [ -z "$ZIP_NAME" ]; then
++    ZIP_NAME="SuperSourceGit_Mac_ARM64.zip"
++fi
++
++echo "$0 $DESTINATION_FOLDER $ZIP_NAME"
++
++mkdir -p dist/SuperSourceGit
++pushd dist > /dev/null
++cp -r ../$DESTINATION_FOLDER/* SuperSourceGit
++zip -r -q $ZIP_NAME SuperSourceGit
++rm -rf SuperSourceGit
++popd > /dev/null
+diff --git a/build.bat b/build.bat
+new file mode 100755
+index 00000000..68810fd3
+--- /dev/null
++++ b/build.bat
+@@ -0,0 +1,8 @@
++@echo off
++SET CONFIG=%1
++IF "%CONFIG%"=="" (
++    SET CONFIG=Release
++)
++SET RUNTIME_IDENTIFIER=win-x64
++SET DESTINATION_FOLDER=bin\win-x64\%CONFIG%
++dotnet build -r %RUNTIME_IDENTIFIER% -o %DESTINATION_FOLDER% src\SourceGit.csproj -c %CONFIG%
+diff --git a/build.sh b/build.sh
+index 85ca7bae..ad0c086e 100755
+--- a/build.sh
++++ b/build.sh
+@@ -1,3 +1,7 @@
++CONFIG=$1
++if [ -z "$CONFIG" ]; then
++    CONFIG="Release"
++fi
+ RUNTIME_IDENTIFIER="osx-arm64"
+-DESTINATION_FOLDER="bin"
+-dotnet build -c Debug -r $RUNTIME_IDENTIFIER -o $DESTINATION_FOLDER src/SourceGit.csproj $@
++DESTINATION_FOLDER="bin/osx-arm64/$CONFIG"
++dotnet build -r $RUNTIME_IDENTIFIER -o $DESTINATION_FOLDER src/SourceGit.csproj -c $CONFIG
+diff --git a/debug.sh b/debug.sh
+index 34142ded..51d6fda9 100755
+--- a/debug.sh
++++ b/debug.sh
+@@ -1,5 +1,5 @@
+ RUNTIME_IDENTIFIER="osx-arm64"
+-DESTINATION_FOLDER="bin"
++DESTINATION_FOLDER="bin/osx-arm64/Debug"
+ set -e
+ dotnet build -c Debug -r $RUNTIME_IDENTIFIER -o $DESTINATION_FOLDER src/SourceGit.csproj $@
+-lldb bin/SourceGit
++lldb bin/osx-arm64/Debug/SourceGit
+diff --git a/project.vim b/project.vim
+index 4fb7c324..69c79084 100644
+--- a/project.vim
++++ b/project.vim
+@@ -1,10 +1,10 @@
+ "let g:openAIPath = ""
+ 
+-let g:buildCommandDebug = "./build.sh"
+-let g:buildCommandRelease = "./build.sh"
++let g:buildCommandDebug = "./build.sh Debug"
++let g:buildCommandRelease = "./build.sh Release"
+ 
+-let g:projectDebugTargetDebug = "bin/SourceGit"
+-let g:projectDebugTargetRelease = "bin/SourceGit"
++let g:projectDebugTargetDebug = "bin/osx-arm64/Debug/SourceGit"
++let g:projectDebugTargetRelease = "bin/osx/arm64/Release/SourceGit"
+ 
+ let g:projectRunArgsDebug = ""
+ let g:projectRunArgsRelease = ""
+diff --git a/publish.bat b/publish.bat
+new file mode 100755
+index 00000000..24451427
+--- /dev/null
++++ b/publish.bat
+@@ -0,0 +1,8 @@
++@echo off
++SET CONFIG=%1
++IF "%CONFIG%"=="" (
++    SET CONFIG=Release
++)
++SET RUNTIME_IDENTIFIER=win-x64
++SET DESTINATION_FOLDER=bin\win-x64\%CONFIG%
++dotnet publish -r %RUNTIME_IDENTIFIER% -o %DESTINATION_FOLDER% src\SourceGit.csproj -c %CONFIG%
+diff --git a/publish.sh b/publish.sh
+new file mode 100755
+index 00000000..32ca86b4
+--- /dev/null
++++ b/publish.sh
+@@ -0,0 +1,7 @@
++CONFIG=$1
++if [ -z "$CONFIG" ]; then
++    CONFIG="Release"
++fi
++RUNTIME_IDENTIFIER="osx-arm64"
++DESTINATION_FOLDER="bin/osx-arm64/$CONFIG"
++dotnet publish -r $RUNTIME_IDENTIFIER -o $DESTINATION_FOLDER src/SourceGit.csproj -c $CONFIG
+diff --git a/run.sh b/run.sh
+index 0dbe998e..f493868b 100755
+--- a/run.sh
++++ b/run.sh
+@@ -1,5 +1,5 @@
+ RUNTIME_IDENTIFIER="osx-arm64"
+-DESTINATION_FOLDER="bin"
++DESTINATION_FOLDER="bin/osx-arm64/Release"
+ set -e
+ dotnet build -c Release -r $RUNTIME_IDENTIFIER -o $DESTINATION_FOLDER src/SourceGit.csproj $@
+-bin/SourceGit
++bin/osx-arm64/Release/SourceGit
+diff --git a/src/Commands/LFS.cs b/src/Commands/LFS.cs
+index 2d90d2ee..a7f8e6a9 100644
+--- a/src/Commands/LFS.cs
++++ b/src/Commands/LFS.cs
+@@ -7,7 +7,7 @@ namespace SourceGit.Commands
+ {
+     public partial class LFS
+     {
+-        [GeneratedRegex(@"^(.+)\s+(.+)\s+\w+:(\d+)$")]
++        [GeneratedRegex(@"^(\S+)\s+(\S+)\s+\w+:(\d+)$")]
+         private static partial Regex REG_LOCK();
+ 
+         class SubCmd : Command
+diff --git a/src/Models/Change.cs b/src/Models/Change.cs
+index 36fe20ac..9784df31 100644
+--- a/src/Models/Change.cs
++++ b/src/Models/Change.cs
+@@ -28,13 +28,37 @@ namespace SourceGit.Models
+         public string ObjectHash { get; set; } = "";
+     }
+ 
+-    public class Change
++    public class Change : ICloneable
+     {
+         public ChangeState Index { get; set; } = ChangeState.None;
+         public ChangeState WorkTree { get; set; } = ChangeState.None;
+         public string Path { get; set; } = "";
+         public string OriginalPath { get; set; } = "";
+         public ChangeDataForAmend DataForAmend { get; set; } = null;
++        public string LockedBy { get; set; } = "";
++
++        public object Clone()
++        {
++            return new Change
++            {
++                Index = this.Index,
++                WorkTree = this.WorkTree,
++                Path = this.Path,
++                OriginalPath = this.OriginalPath,
++                DataForAmend = this.DataForAmend,
++                LockedBy = this.LockedBy
++            };
++        }
++
++        public bool HasChanged
++        {
++            get => WorkTree != ChangeState.None || Index != ChangeState.None;
++        }
++
++        public bool IsLocked
++        {
++            get => LockedBy.Length > 0;
++        }
+ 
+         public bool IsConflit
+         {
+diff --git a/src/Models/IRepository.cs b/src/Models/IRepository.cs
+index 12b1adba..9a085263 100644
+--- a/src/Models/IRepository.cs
++++ b/src/Models/IRepository.cs
+@@ -11,6 +11,7 @@
+         void RefreshCommits();
+         void RefreshSubmodules();
+         void RefreshWorkingCopyChanges();
++        void RefreshWorkingCopyLocks();
+         void RefreshStashes();
+     }
+ }
+diff --git a/src/Models/Watcher.cs b/src/Models/Watcher.cs
+index 710b307d..c4a03bcc 100644
+--- a/src/Models/Watcher.cs
++++ b/src/Models/Watcher.cs
+@@ -119,6 +119,7 @@ namespace SourceGit.Models
+                 Task.Run(_repo.RefreshBranches);
+                 Task.Run(_repo.RefreshCommits);
+                 Task.Run(_repo.RefreshWorkingCopyChanges);
++                Task.Run(_repo.RefreshWorkingCopyLocks);
+                 Task.Run(_repo.RefreshWorktrees);
+             }
+ 
+@@ -126,6 +127,7 @@ namespace SourceGit.Models
+             {
+                 _updateWC = 0;
+                 Task.Run(_repo.RefreshWorkingCopyChanges);
++                Task.Run(_repo.RefreshWorkingCopyLocks);
+             }
+ 
+             if (_updateSubmodules > 0 && now > _updateSubmodules)
+diff --git a/src/Resources/Locales/en_US.axaml b/src/Resources/Locales/en_US.axaml
+index 00139919..fc956516 100644
+--- a/src/Resources/Locales/en_US.axaml
++++ b/src/Resources/Locales/en_US.axaml
+@@ -685,7 +685,7 @@
+   <x:String x:Key="Text.WorkingCopy.Conflicts" xml:space="preserve">CONFLICTS DETECTED</x:String>
+   <x:String x:Key="Text.WorkingCopy.Conflicts.Resolved" xml:space="preserve">FILE CONFLICTS ARE RESOLVED</x:String>
+   <x:String x:Key="Text.WorkingCopy.IncludeUntracked" xml:space="preserve">INCLUDE UNTRACKED FILES</x:String>
+-  <x:String x:Key="Text.WorkingCopy.ListFiles" xml:space="preserve">SHOW LOCAL FILES</x:String>
++  <x:String x:Key="Text.WorkingCopy.ListLocalFiles" xml:space="preserve">SHOW LOCAL FILES</x:String>
+   <x:String x:Key="Text.WorkingCopy.NoCommitHistories" xml:space="preserve">NO RECENT INPUT MESSAGES</x:String>
+   <x:String x:Key="Text.WorkingCopy.NoCommitTemplates" xml:space="preserve">NO COMMIT TEMPLATES</x:String>
+   <x:String x:Key="Text.WorkingCopy.Staged" xml:space="preserve">STAGED</x:String>
+diff --git a/src/Resources/Styles.axaml b/src/Resources/Styles.axaml
+index 89d57e81..2247f659 100644
+--- a/src/Resources/Styles.axaml
++++ b/src/Resources/Styles.axaml
+@@ -1229,6 +1229,36 @@
+     <Setter Property="Opacity" Value="1"/>
+   </Style>
+ 
++  <Style Selector="ToggleButton.toggle_showlocks">
++    <Setter Property="Margin" Value="0"/>
++    <Setter Property="Padding" Value="0"/>
++    <Setter Property="Background" Value="Transparent"/>
++    <Setter Property="HorizontalAlignment" Value="Stretch"/>
++    <Setter Property="VerticalAlignment" Value="Stretch"/>
++    <Setter Property="Template">
++      <ControlTemplate>
++        <Border Background="Transparent">
++          <Path x:Name="PART_IndicatorIcon"
++                Margin="{TemplateBinding Padding}"
++                Stretch="Fill"
++                Width="14" Height="14"
++                Data="{StaticResource Icons.Lock}"
++                Fill="{DynamicResource Brush.FG1}"
++                Opacity=".8"/>
++        </Border>
++      </ControlTemplate>
++    </Setter>
++  </Style>
++  <Style Selector="ToggleButton.toggle_showlocks:pressed">
++    <Setter Property="RenderTransform" Value="scale(1)"/>
++  </Style>
++  <Style Selector="ToggleButton.toggle_showlocks:checked /template/ Path#PART_IndicatorIcon">
++    <Setter Property="Fill" Value="Red"/>
++  </Style>
++  <Style Selector="ToggleButton.toggle_showlocks:pointerover /template/ Path#PART_IndicatorIcon">
++    <Setter Property="Opacity" Value="1"/>
++  </Style>
++
+   <Style Selector="ToggleButton.tag_display_mode">
+     <Setter Property="Margin" Value="0" />
+     <Setter Property="Background" Value="Transparent"/>
+diff --git a/src/ViewModels/ChangeTreeNode.cs b/src/ViewModels/ChangeTreeNode.cs
+index 93bb02d9..2f280124 100644
+--- a/src/ViewModels/ChangeTreeNode.cs
++++ b/src/ViewModels/ChangeTreeNode.cs
+@@ -17,6 +17,16 @@ namespace SourceGit.ViewModels
+             get => Change != null && (Change.WorkTree != Models.ChangeState.None || Change.Index != Models.ChangeState.None);
+         }
+ 
++        public bool IsLocked
++        {
++            get => Change != null && Change.LockedBy.Length > 0;
++        }
++
++        public string LockedBy
++        {
++            get => Change != null ? Change.LockedBy : "";
++        }
++
+         public bool IsFolder
+         {
+             get => Change == null;
+@@ -66,16 +76,17 @@ namespace SourceGit.ViewModels
+                         if (folders.TryGetValue(folder, out var value))
+                         {
+                             lastFolder = value;
++                            lastFolder.IsExpanded |= c.HasChanged;
+                         }
+                         else if (lastFolder == null)
+                         {
+-                            lastFolder = new ChangeTreeNode(folder, !folded.Contains(folder), depth);
++                            lastFolder = new ChangeTreeNode(folder, c.HasChanged && !folded.Contains(folder), depth);
+                             folders.Add(folder, lastFolder);
+                             InsertFolder(nodes, lastFolder);
+                         }
+                         else
+                         {
+-                            var cur = new ChangeTreeNode(folder, !folded.Contains(folder), depth);
++                            var cur = new ChangeTreeNode(folder, c.HasChanged && !folded.Contains(folder), depth);
+                             folders.Add(folder, cur);
+                             InsertFolder(lastFolder.Children, cur);
+                             lastFolder = cur;
+diff --git a/src/ViewModels/Preference.cs b/src/ViewModels/Preference.cs
+index 70f0041f..b9ad0a7f 100644
+--- a/src/ViewModels/Preference.cs
++++ b/src/ViewModels/Preference.cs
+@@ -600,7 +600,7 @@ namespace SourceGit.ViewModels
+         private bool _showAuthorTimeInGraph = false;
+         private bool _showChildren = false;
+ 
+-        private bool _check4UpdatesOnStartup = true;
++        private bool _check4UpdatesOnStartup = false;
+         private double _lastCheckUpdateTime = 0;
+         private string _ignoreUpdateTag = string.Empty;
+ 
+diff --git a/src/ViewModels/Repository.cs b/src/ViewModels/Repository.cs
+index ea6af35b..ca52a7f4 100644
+--- a/src/ViewModels/Repository.cs
++++ b/src/ViewModels/Repository.cs
+@@ -18,6 +18,16 @@ namespace SourceGit.ViewModels
+ {
+     public class Repository : ObservableObject, Models.IRepository
+     {
++        public int RefreshingViewsCount
++        {
++            get => _refreshingViewsCount;
++            set
++            {
++                _refreshingViewsCount = value;
++                OnPropertyChanged(nameof(RefreshingViewsCount));
++            }
++        }
++
+         public string FullPath
+         {
+             get => _fullpath;
+@@ -214,16 +224,26 @@ namespace SourceGit.ViewModels
+             }
+         }
+ 
+-        public bool ListFiles
++        public bool ListLocalFiles
+         {
+-            get => _listFiles;
++            get => _listLocalFiles;
+             set
+             {
+-                if (SetProperty(ref _listFiles, value))
++                if (SetProperty(ref _listLocalFiles, value))
+                     Task.Run(RefreshWorkingCopyChanges);
+             }
+         }
+ 
++        public bool ShowLocks
++        {
++            get => _showLocks;
++            set
++            {
++                if (SetProperty(ref _showLocks, value))
++                    Task.Run(RefreshWorkingCopyLocks);
++            }
++        }
++
+         public bool IsSearching
+         {
+             get => _isSearching;
+@@ -484,6 +504,7 @@ namespace SourceGit.ViewModels
+             Task.Run(RefreshSubmodules);
+             Task.Run(RefreshWorktrees);
+             Task.Run(RefreshWorkingCopyChanges);
++            Task.Run(RefreshWorkingCopyLocks);
+             Task.Run(RefreshStashes);
+         }
+ 
+@@ -663,6 +684,7 @@ namespace SourceGit.ViewModels
+                 Task.Run(RefreshBranches);
+                 Task.Run(RefreshCommits);
+                 Task.Run(RefreshWorkingCopyChanges);
++                Task.Run(RefreshWorkingCopyLocks);
+                 Task.Run(RefreshWorktrees);
+             }
+             else
+@@ -674,9 +696,14 @@ namespace SourceGit.ViewModels
+         public void MarkWorkingCopyDirtyManually()
+         {
+             if (_watcher == null)
++            {
+                 Task.Run(RefreshWorkingCopyChanges);
++                Task.Run(RefreshWorkingCopyLocks);
++            }
+             else
++            {
+                 _watcher.MarkWorkingCopyDirtyManually();
++            }
+         }
+ 
+         public void MarkFetched()
+@@ -888,6 +915,11 @@ namespace SourceGit.ViewModels
+             foreach (var file in dict.Values)
+                 merged.Add(file);
+ 
++            merged.Sort((l, r) =>
++            {
++                return string.Compare(l.Path, r.Path, StringComparison.Ordinal);
++            });
++
+             return merged;
+         }
+ 
+@@ -896,24 +928,72 @@ namespace SourceGit.ViewModels
+             if (_workingCopy == null)
+                 return;
+ 
+-            var merged = null as List<Models.Change>;
++            ++RefreshingViewsCount;
+ 
+-            if (_listFiles) 
++            if (_listLocalFiles) 
+             {
+                 var files = new Commands.ListLocalFiles(_fullpath).Result();
+                 var changes = new Commands.QueryLocalChanges(_fullpath, _includeUntracked).Result();
+-                merged = MergeFileLists(files, changes);
++                _visibleChanges = MergeFileLists(files, changes);
++            }
++            else
++            {
++                _visibleChanges = new Commands.QueryLocalChanges(_fullpath, _includeUntracked).Result();
++            }
++
++            foreach (var lfsLock in _visibleLocks)
++            {
++                var change = _visibleChanges.Find(x => x.Path == lfsLock.File);
++                if (change != null)
++                    change.LockedBy = lfsLock.User;
++            }
++
++            --RefreshingViewsCount;
++
++            _workingCopy.SetData(_visibleChanges);
++
++            Dispatcher.UIThread.Invoke(() =>
++            {
++                int changesCount = 0;
++                foreach (var change in _visibleChanges)
++                {
++                    if (change.HasChanged)
++                        ++changesCount;
++                }
++                LocalChangesCount = changesCount;
++                OnPropertyChanged(nameof(InProgressContext));
++            });
++        }
++
++        public void RefreshWorkingCopyLocks()
++        {
++            ++RefreshingViewsCount;
++
++            if (_showLocks && _remotes.Count > 0)
++            {
++                _visibleLocks = new Commands.LFS(_fullpath).Locks(_remotes[0].Name);
+             }
+             else
+             {
+-                merged = new Commands.QueryLocalChanges(_fullpath, _includeUntracked).Result();
++                _visibleLocks.Clear();
+             }
+ 
+-            _workingCopy.SetData(merged);
++            foreach (var change in _visibleChanges)
++                change.LockedBy = "";
++
++            foreach (var lfsLock in _visibleLocks)
++            {
++                var change = _visibleChanges.Find(x => x.Path == lfsLock.File);
++                if (change != null)
++                    change.LockedBy = lfsLock.User;
++            }
++
++            --RefreshingViewsCount;
++
++            _workingCopy.SetData(_visibleChanges);
+ 
+             Dispatcher.UIThread.Invoke(() =>
+             {
+-                LocalChangesCount = merged.Count;
+                 OnPropertyChanged(nameof(InProgressContext));
+             });
+         }
+@@ -2282,8 +2362,13 @@ namespace SourceGit.ViewModels
+         private List<Models.Submodule> _submodules = new List<Models.Submodule>();
+         private List<Models.Submodule> _visibleSubmodules = new List<Models.Submodule>();
+ 
++        private bool _showLocks = false;
++        private List<Models.LFSLock> _visibleLocks = new List<Models.LFSLock>();
++        private List<Models.Change> _visibleChanges = new List<Models.Change>();
++        private int _refreshingViewsCount = 0;
++
+         private bool _includeUntracked = true;
+-        private bool _listFiles = false;
++        private bool _listLocalFiles = false;
+         private Models.Commit _searchResultSelectedCommit = null;
+         private Timer _autoFetchTimer = null;
+         private DateTime _lastFetchTime = DateTime.MinValue;
+diff --git a/src/ViewModels/WorkingCopy.cs b/src/ViewModels/WorkingCopy.cs
+index 828b9877..e8d501b4 100644
+--- a/src/ViewModels/WorkingCopy.cs
++++ b/src/ViewModels/WorkingCopy.cs
+@@ -46,14 +46,27 @@ namespace SourceGit.ViewModels
+             }
+         }
+ 
+-        public bool ListFiles
++        public bool ListLocalFiles
+         {
+-            get => _repo.ListFiles;
++            get => _repo.ListLocalFiles;
+             set
+             {
+-                if (_repo.ListFiles != value)
++                if (_repo.ListLocalFiles != value)
+                 {
+-                    _repo.ListFiles = value;
++                    _repo.ListLocalFiles = value;
++                    OnPropertyChanged();
++                }
++            }
++        }
++
++        public bool ShowLocks
++        {
++            get => _repo.ShowLocks;
++            set
++            {
++                if (_repo.ShowLocks != value)
++                {
++                    _repo.ShowLocks = value;
+                     OnPropertyChanged();
+                 }
+             }
+@@ -81,6 +94,12 @@ namespace SourceGit.ViewModels
+             private set => SetProperty(ref _inProgressContext, value);
+         }
+ 
++        public bool IsRefreshing
++        {
++            get => _isRefreshing;
++            private set => SetProperty(ref _isRefreshing, value);
++        }
++
+         public bool IsStaging
+         {
+             get => _isStaging;
+@@ -138,6 +157,20 @@ namespace SourceGit.ViewModels
+             private set => SetProperty(ref _unstaged, value);
+         }
+ 
++        public int UnstagedChangesCount
++        {
++            get
++            {
++                var count = 0;
++                foreach (var c in _unstaged)
++                {
++                    if (c.WorkTree != Models.ChangeState.None)
++                        count++;
++                }
++                return count;
++            }
++        }
++
+         public List<Models.Change> Staged
+         {
+             get => _staged;
+@@ -211,6 +244,14 @@ namespace SourceGit.ViewModels
+         public WorkingCopy(Repository repo)
+         {
+             _repo = repo;
++            _repo.PropertyChanged += (_, _) => {
++                OnRepoRefreshing();
++            };
++        }
++
++        private void OnRepoRefreshing()
++        {
++            IsRefreshing = _repo.RefreshingViewsCount > 0;
+         }
+ 
+         public void Cleanup()
+@@ -265,7 +306,10 @@ namespace SourceGit.ViewModels
+                 return;
+             }
+ 
+-            _cached = changes;
++            _cached = new List<Models.Change>();
++            foreach (var c in changes)
++                _cached.Add((Models.Change)c.Clone());
++
+             _count = _cached.Count;
+ 
+             var lastSelectedUnstaged = new HashSet<string>();
+@@ -284,9 +328,10 @@ namespace SourceGit.ViewModels
+             var unstaged = new List<Models.Change>();
+             var selectedUnstaged = new List<Models.Change>();
+             var hasConflict = false;
++            var listLocalFiles = _repo.ListLocalFiles;
+             foreach (var c in changes)
+             {
+-                //if (c.WorkTree != Models.ChangeState.None)
++                if (c.WorkTree != Models.ChangeState.None || listLocalFiles)
+                 {
+                     unstaged.Add(c);
+                     hasConflict |= c.IsConflit;
+@@ -369,7 +414,13 @@ namespace SourceGit.ViewModels
+ 
+         public void StageAll()
+         {
+-            StageChanges(_unstaged, null);
++            var stage = new List<Models.Change>();
++            foreach (var c in _unstaged)
++            {
++                if (c.WorkTree != Models.ChangeState.None)
++                    stage.Add(c);
++            }
++            StageChanges(stage, null);
+         }
+ 
+         public async void StageChanges(List<Models.Change> changes, Models.Change next)
+@@ -745,7 +796,10 @@ namespace SourceGit.ViewModels
+                             {
+                                 var succ = await Task.Run(() => new Commands.LFS(_repo.FullPath).Track(filename, true));
+                                 if (succ)
++                                {
++                                    _repo.MarkWorkingCopyDirtyManually();
+                                     App.SendNotification(_repo.FullPath, $"Tracking file named {filename} successfully!");
++                                }
+ 
+                                 e.Handled = true;
+                             };
+@@ -759,7 +813,10 @@ namespace SourceGit.ViewModels
+                                 {
+                                     var succ = await Task.Run(() => new Commands.LFS(_repo.FullPath).Track("*" + extension));
+                                     if (succ)
++                                    {
++                                        _repo.MarkWorkingCopyDirtyManually();
+                                         App.SendNotification(_repo.FullPath, $"Tracking all *{extension} files successfully!");
++                                    }
+ 
+                                     e.Handled = true;
+                                 };
+@@ -779,7 +836,10 @@ namespace SourceGit.ViewModels
+                             {
+                                 var succ = await Task.Run(() => new Commands.LFS(_repo.FullPath).Lock(_repo.Remotes[0].Name, change.Path));
+                                 if (succ)
++                                {
++                                    _repo.MarkWorkingCopyDirtyManually();
+                                     App.SendNotification(_repo.FullPath, $"Lock file \"{change.Path}\" successfully!");
++                                }
+ 
+                                 e.Handled = true;
+                             };
+@@ -795,7 +855,10 @@ namespace SourceGit.ViewModels
+                                 {
+                                     var succ = await Task.Run(() => new Commands.LFS(_repo.FullPath).Lock(remoteName, change.Path));
+                                     if (succ)
++                                    {
++                                        _repo.MarkWorkingCopyDirtyManually();
+                                         App.SendNotification(_repo.FullPath, $"Lock file \"{change.Path}\" successfully!");
++                                    }
+ 
+                                     e.Handled = true;
+                                 };
+@@ -814,7 +877,10 @@ namespace SourceGit.ViewModels
+                             {
+                                 var succ = await Task.Run(() => new Commands.LFS(_repo.FullPath).Unlock(_repo.Remotes[0].Name, change.Path, false));
+                                 if (succ)
++                                {
++                                    _repo.MarkWorkingCopyDirtyManually();
+                                     App.SendNotification(_repo.FullPath, $"Unlock file \"{change.Path}\" successfully!");
++                                }
+ 
+                                 e.Handled = true;
+                             };
+@@ -830,7 +896,10 @@ namespace SourceGit.ViewModels
+                                 {
+                                     var succ = await Task.Run(() => new Commands.LFS(_repo.FullPath).Unlock(remoteName, change.Path, false));
+                                     if (succ)
++                                    {
++                                        _repo.MarkWorkingCopyDirtyManually();
+                                         App.SendNotification(_repo.FullPath, $"Unlock file \"{change.Path}\" successfully!");
++                                    }
+ 
+                                     e.Handled = true;
+                                 };
+@@ -1124,7 +1193,10 @@ namespace SourceGit.ViewModels
+                         {
+                             var succ = await Task.Run(() => new Commands.LFS(_repo.FullPath).Lock(_repo.Remotes[0].Name, change.Path));
+                             if (succ)
++                            {
++                                _repo.MarkWorkingCopyDirtyManually();
+                                 App.SendNotification(_repo.FullPath, $"Lock file \"{change.Path}\" successfully!");
++                            }
+ 
+                             e.Handled = true;
+                         };
+@@ -1140,7 +1212,10 @@ namespace SourceGit.ViewModels
+                             {
+                                 var succ = await Task.Run(() => new Commands.LFS(_repo.FullPath).Lock(remoteName, change.Path));
+                                 if (succ)
++                                {
++                                    _repo.MarkWorkingCopyDirtyManually();
+                                     App.SendNotification(_repo.FullPath, $"Lock file \"{change.Path}\" successfully!");
++                                }
+ 
+                                 e.Handled = true;
+                             };
+@@ -1159,7 +1234,10 @@ namespace SourceGit.ViewModels
+                         {
+                             var succ = await Task.Run(() => new Commands.LFS(_repo.FullPath).Unlock(_repo.Remotes[0].Name, change.Path, false));
+                             if (succ)
++                            {
++                                _repo.MarkWorkingCopyDirtyManually();
+                                 App.SendNotification(_repo.FullPath, $"Unlock file \"{change.Path}\" successfully!");
++                            }
+ 
+                             e.Handled = true;
+                         };
+@@ -1175,7 +1253,10 @@ namespace SourceGit.ViewModels
+                             {
+                                 var succ = await Task.Run(() => new Commands.LFS(_repo.FullPath).Unlock(remoteName, change.Path, false));
+                                 if (succ)
++                                {
++                                    _repo.MarkWorkingCopyDirtyManually();
+                                     App.SendNotification(_repo.FullPath, $"Unlock file \"{change.Path}\" successfully!");
++                                }
+ 
+                                 e.Handled = true;
+                             };
+@@ -1526,11 +1607,11 @@ namespace SourceGit.ViewModels
+ 
+             var oldSet = new HashSet<string>();
+             foreach (var c in old)
+-                oldSet.Add($"{c.Path}\n{c.WorkTree}\n{c.Index}");
++                oldSet.Add($"{c.Path}\n{c.WorkTree}\n{c.Index}\n{c.LockedBy}");
+ 
+             foreach (var c in cur)
+             {
+-                if (!oldSet.Contains($"{c.Path}\n{c.WorkTree}\n{c.Index}"))
++                if (!oldSet.Contains($"{c.Path}\n{c.WorkTree}\n{c.Index}\n{c.LockedBy}"))
+                     return true;
+             }
+ 
+@@ -1558,6 +1639,7 @@ namespace SourceGit.ViewModels
+ 
+         private Repository _repo = null;
+         private bool _isLoadingData = false;
++        private bool _isRefreshing = false;
+         private bool _isStaging = false;
+         private bool _isUnstaging = false;
+         private bool _isCommitting = false;
+diff --git a/src/Views/ChangeCollectionView.axaml b/src/Views/ChangeCollectionView.axaml
+index db493ae7..3f4e3ef3 100644
+--- a/src/Views/ChangeCollectionView.axaml
++++ b/src/Views/ChangeCollectionView.axaml
+@@ -36,7 +36,7 @@
+                                    SelectionChanged="OnRowSelectionChanged">
+         <ListBox.ItemTemplate>
+           <DataTemplate DataType="vm:ChangeTreeNode">
+-            <Grid ColumnDefinitions="16,Auto,Auto,*"
++            <Grid ColumnDefinitions="16,Auto,Auto,Auto,*"
+                   Margin="{Binding Depth, Converter={x:Static c:IntConverters.ToTreeMargin}}"
+                   Background="Transparent"
+                   DoubleTapped="OnRowDoubleTapped">
+@@ -56,8 +56,20 @@
+                             IsChecked="{Binding IsExpanded}"
+                             IsVisible="{Binding IsFolder}"/>
+ 
+-              <v:ChangeStatusIcon Grid.Column="1" Width="14" Height="14" IsUnstagedChange="{Binding #ThisControl.IsUnstagedChange}" Change="{Binding Change}" IsVisible="{Binding HasChanged}" Margin="0,0,6,0"/>
+-              <TextBlock Grid.Column="2" Classes="primary" Text="{Binding FullPath, Converter={x:Static c:PathConverters.PureFileName}}"/>
++              <v:ChangeStatusIcon Grid.Column="0" Width="14" Height="14" IsUnstagedChange="{Binding #ThisControl.IsUnstagedChange}" Change="{Binding Change}" IsVisible="{Binding HasChanged}" Margin="0,0,0,0"/>
++
++              <Path Grid.Column="2"
++                      ToolTip.Tip="{Binding LockedBy}"
++                      Width="14" Height="14"
++                      Margin="4,0,0,0"
++                      Data="{StaticResource Icons.Lock}"
++                      Fill="Red"
++                      IsVisible="{Binding IsLocked}"/>
++
++              <TextBlock Grid.Column="3"
++                      Classes="primary"
++                      Margin="4,0,0,0"
++                      Text="{Binding FullPath, Converter={x:Static c:PathConverters.PureFileName}}"/>
+             </Grid>
+           </DataTemplate>
+         </ListBox.ItemTemplate>
+@@ -72,18 +84,27 @@
+         <ListBox.ItemTemplate>
+           <DataTemplate DataType="m:Change">
+             <Grid ColumnDefinitions="Auto,Auto,Auto,*" Background="Transparent" DoubleTapped="OnRowDoubleTapped">
+-              <v:ChangeStatusIcon Grid.Column="0"
++              <Path Grid.Column="0"
++                      ToolTip.Tip="{Binding LockedBy}"
++                      Width="14" Height="14"
++                      Margin="4,0,0,0"
++                      Data="{StaticResource Icons.Lock}"
++                      Fill="Red"
++                      IsVisible="{Binding IsLocked}"/>
++
++              <v:ChangeStatusIcon Grid.Column="1"
+                                   Width="14" Height="14"
+                                   Margin="4,0,0,0"
+                                   IsUnstagedChange="{Binding #ThisControl.IsUnstagedChange}"
++                                  IsVisible="{Binding HasChanged}"
+                                   Change="{Binding}" />
+ 
+-              <TextBlock Grid.Column="1"
++              <TextBlock Grid.Column="2"
+                          Classes="primary"
+                          Text="{Binding Path, Converter={x:Static c:PathConverters.PureFileName}}"
+                          Margin="4,0"/>
+ 
+-              <TextBlock Grid.Column="2"
++              <TextBlock Grid.Column="3"
+                          Classes="primary"
+                          Text="{Binding Path, Converter={x:Static c:PathConverters.PureDirectoryName}}"
+                          Foreground="{DynamicResource Brush.FG2}"/>
+@@ -101,13 +122,22 @@
+         <ListBox.ItemTemplate>
+           <DataTemplate DataType="m:Change">
+             <Grid ColumnDefinitions="Auto,Auto,*" Background="Transparent" DoubleTapped="OnRowDoubleTapped">
+-              <v:ChangeStatusIcon Grid.Column="0"
++              <Path Grid.Column="0"
++                      ToolTip.Tip="{Binding LockedBy}"
++                      Width="14" Height="14"
++                      Margin="4,0,0,0"
++                      Data="{StaticResource Icons.Lock}"
++                      Fill="Red"
++                      IsVisible="{Binding IsLocked}"/>
++
++              <v:ChangeStatusIcon Grid.Column="1"
+                                   Width="14" Height="14"
+                                   Margin="4,0,0,0"
+                                   IsUnstagedChange="{Binding #ThisControl.IsUnstagedChange}"
++                                  IsVisible="{Binding HasChanged}"
+                                   Change="{Binding}" />
+ 
+-              <TextBlock Grid.Column="1"
++              <TextBlock Grid.Column="2"
+                          Classes="primary"
+                          Text="{Binding Path}"
+                          Margin="4,0"/>
+diff --git a/src/Views/ChangeStatusIcon.cs b/src/Views/ChangeStatusIcon.cs
+index 5d34be09..daf7157f 100644
+--- a/src/Views/ChangeStatusIcon.cs
++++ b/src/Views/ChangeStatusIcon.cs
+@@ -82,11 +82,27 @@ namespace SourceGit.Views
+             set => SetValue(ChangeProperty, value);
+         }
+ 
++        public bool IsVisibleInCurrentView
++        {
++            get => (Change != null) && (IsUnstagedChange ? Change.WorkTree != Models.ChangeState.None : Change.Index != Models.ChangeState.None);
++        }
++
++        protected override Size MeasureCore(Size availableSize)
++        {
++            if (!IsVisibleInCurrentView)
++                return new Size(0, 0);
++
++            return base.MeasureCore(availableSize);
++        }
++
+         public override void Render(DrawingContext context)
+         {
+             if (Change == null || Bounds.Width <= 0)
+                 return;
+ 
++            if (!IsVisibleInCurrentView)
++                return;
++
+             var typeface = new Typeface("fonts:SourceGit#JetBrains Mono");
+ 
+             IBrush background;
+diff --git a/src/Views/WorkingCopy.axaml b/src/Views/WorkingCopy.axaml
+index 4b57a32f..f466c6cc 100644
+--- a/src/Views/WorkingCopy.axaml
++++ b/src/Views/WorkingCopy.axaml
+@@ -27,18 +27,26 @@
+       <Grid Grid.Row="0" RowDefinitions="28,*">
+         <!-- Unstaged Toolbar -->
+         <Border Grid.Row="0" BorderThickness="0,0,0,1" BorderBrush="{DynamicResource Brush.Border0}">
+-          <Grid ColumnDefinitions="Auto,Auto,Auto,Auto,*,Auto,Auto,Auto,Auto,Auto,Auto">
++          <Grid ColumnDefinitions="Auto,Auto,Auto,Auto,*,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto">
+             <Path Grid.Column="0" Margin="8,0,0,0" Width="14" Height="14" Fill="{DynamicResource Brush.FG2}" Data="{StaticResource Icons.Changes}"/>
+             <TextBlock Grid.Column="1" Text="{DynamicResource Text.WorkingCopy.Unstaged}" Foreground="{DynamicResource Brush.FG2}" FontWeight="Bold" Margin="4,0,0,0"/>
+-            <TextBlock Grid.Column="2" FontWeight="Bold" Foreground="{DynamicResource Brush.FG2}" Text="{Binding Unstaged, Converter={x:Static c:ListConverters.ToCount}}"/>
++            <TextBlock Grid.Column="2" FontWeight="Bold" Foreground="{DynamicResource Brush.FG2}" Text="{Binding UnstagedChangesCount, StringFormat='({0})'}"/>
+             <v:LoadingIcon Grid.Column="3" Width="14" Height="14" Margin="8,0,0,0" IsVisible="{Binding IsStaging}"/>
++            <v:LoadingIcon Grid.Column="3" Width="14" Height="14" Margin="8,0,0,0" IsVisible="{Binding IsRefreshing}"/>
+ 
+-            <ToggleButton Grid.Column="5"
++            <ToggleButton Grid.Column="6"
++                          Classes="toggle_showlocks"
++                          Width="26" Height="14"
++                          ToolTip.Tip="{DynamicResource Text.WorkingCopy.ShowLocks}"
++                          IsChecked="{Binding ShowLocks, Mode=TwoWay}"/>
++
++            <ToggleButton Grid.Column="7"
+                           Classes="toggle_listfiles"
+                           Width="26" Height="14"
+-                          ToolTip.Tip="{DynamicResource Text.WorkingCopy.ListFiles}"
+-                          IsChecked="{Binding ListFiles, Mode=TwoWay}"/>
+-            <Button Grid.Column="6"
++                          ToolTip.Tip="{DynamicResource Text.WorkingCopy.ListLocalFiles}"
++                          IsChecked="{Binding ListLocalFiles, Mode=TwoWay}"/>
++
++            <Button Grid.Column="8"
+                     Classes="icon_button"
+                     Width="26" Height="14"
+                     Padding="0"
+@@ -46,12 +54,14 @@
+                     Command="{Binding OpenAssumeUnchanged}">
+               <Path Width="14" Height="14" Data="{StaticResource Icons.File.Ignore}"/>
+             </Button>
+-            <ToggleButton Grid.Column="7"
++
++            <ToggleButton Grid.Column="9"
+                           Classes="toggle_untracked"
+                           Width="26" Height="14"
+                           ToolTip.Tip="{DynamicResource Text.WorkingCopy.IncludeUntracked}"
+                           IsChecked="{Binding IncludeUntracked, Mode=TwoWay}"/>
+-            <Button Grid.Column="8"
++
++            <Button Grid.Column="10"
+                     Classes="icon_button"
+                     Width="26" Height="14"
+                     Padding="0"
+@@ -64,7 +74,8 @@
+               </ToolTip.Tip>
+               <Path Width="14" Height="14" Margin="0,6,0,0" Data="{StaticResource Icons.Down}"/>
+             </Button>
+-            <Button Grid.Column="9"
++
++            <Button Grid.Column="11"
+                     Classes="icon_button"
+                     Width="26" Height="14"
+                     Padding="0"
+@@ -72,10 +83,12 @@
+                     Command="{Binding StageAll}">
+               <Path Width="14" Height="14" Data="{StaticResource Icons.DoubleDown}"/>
+             </Button>
+-            <v:ChangeViewModeSwitcher Grid.Column="10"
++
++            <v:ChangeViewModeSwitcher Grid.Column="12"
+                                       Width="26" Height="14"
+                                       Margin="0,1,0,0"
+                                       ViewMode="{Binding Source={x:Static vm:Preference.Instance}, Path=UnstagedChangeViewMode, Mode=TwoWay}"/>
++
+           </Grid>
+         </Border>
+ 

@@ -7,7 +7,7 @@ namespace SourceGit.Commands
 {
     public partial class LFS
     {
-        [GeneratedRegex(@"^(.+)\s+(.+)\s+\w+:(\d+)$")]
+        [GeneratedRegex(@"^(\S+)\s+(\S+)\s+\w+:(\d+)$")]
         private static partial Regex REG_LOCK();
 
         class SubCmd : Command

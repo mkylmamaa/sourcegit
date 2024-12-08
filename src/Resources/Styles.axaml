@@ -1229,6 +1229,36 @@
     <Setter Property="Opacity" Value="1"/>
   </Style>
 
+  <Style Selector="ToggleButton.toggle_showlocks">
+    <Setter Property="Margin" Value="0"/>
+    <Setter Property="Padding" Value="0"/>
+    <Setter Property="Background" Value="Transparent"/>
+    <Setter Property="HorizontalAlignment" Value="Stretch"/>
+    <Setter Property="VerticalAlignment" Value="Stretch"/>
+    <Setter Property="Template">
+      <ControlTemplate>
+        <Border Background="Transparent">
+          <Path x:Name="PART_IndicatorIcon"
+                Margin="{TemplateBinding Padding}"
+                Stretch="Fill"
+                Width="14" Height="14"
+                Data="{StaticResource Icons.Lock}"
+                Fill="{DynamicResource Brush.FG1}"
+                Opacity=".8"/>
+        </Border>
+      </ControlTemplate>
+    </Setter>
+  </Style>
+  <Style Selector="ToggleButton.toggle_showlocks:pressed">
+    <Setter Property="RenderTransform" Value="scale(1)"/>
+  </Style>
+  <Style Selector="ToggleButton.toggle_showlocks:checked /template/ Path#PART_IndicatorIcon">
+    <Setter Property="Fill" Value="Red"/>
+  </Style>
+  <Style Selector="ToggleButton.toggle_showlocks:pointerover /template/ Path#PART_IndicatorIcon">
+    <Setter Property="Opacity" Value="1"/>
+  </Style>
+
   <Style Selector="ToggleButton.tag_display_mode">
     <Setter Property="Margin" Value="0" />
     <Setter Property="Background" Value="Transparent"/>

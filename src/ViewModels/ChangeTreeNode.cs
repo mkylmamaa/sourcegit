@@ -17,6 +17,16 @@ namespace SourceGit.ViewModels
             get => Change != null && (Change.WorkTree != Models.ChangeState.None || Change.Index != Models.ChangeState.None);
         }
 
+        public bool IsLocked
+        {
+            get => Change != null && Change.LockedBy.Length > 0;
+        }
+
+        public string LockedBy
+        {
+            get => Change != null ? Change.LockedBy : "";
+        }
+
         public bool IsFolder
         {
             get => Change == null;
@@ -66,16 +76,17 @@ namespace SourceGit.ViewModels
                         if (folders.TryGetValue(folder, out var value))
                         {
                             lastFolder = value;
+                            lastFolder.IsExpanded |= c.HasChanged;
                         }
                         else if (lastFolder == null)
                         {
-                            lastFolder = new ChangeTreeNode(folder, !folded.Contains(folder), depth);
+                            lastFolder = new ChangeTreeNode(folder, c.HasChanged && !folded.Contains(folder), depth);
                             folders.Add(folder, lastFolder);
                             InsertFolder(nodes, lastFolder);
                         }
                         else
                         {
-                            var cur = new ChangeTreeNode(folder, !folded.Contains(folder), depth);
+                            var cur = new ChangeTreeNode(folder, c.HasChanged && !folded.Contains(folder), depth);
                             folders.Add(folder, cur);
                             InsertFolder(lastFolder.Children, cur);
                             lastFolder = cur;

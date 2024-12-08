@@ -27,18 +27,26 @@
       <Grid Grid.Row="0" RowDefinitions="28,*">
         <!-- Unstaged Toolbar -->
         <Border Grid.Row="0" BorderThickness="0,0,0,1" BorderBrush="{DynamicResource Brush.Border0}">
-          <Grid ColumnDefinitions="Auto,Auto,Auto,Auto,*,Auto,Auto,Auto,Auto,Auto,Auto">
+          <Grid ColumnDefinitions="Auto,Auto,Auto,Auto,*,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto">
             <Path Grid.Column="0" Margin="8,0,0,0" Width="14" Height="14" Fill="{DynamicResource Brush.FG2}" Data="{StaticResource Icons.Changes}"/>
             <TextBlock Grid.Column="1" Text="{DynamicResource Text.WorkingCopy.Unstaged}" Foreground="{DynamicResource Brush.FG2}" FontWeight="Bold" Margin="4,0,0,0"/>
-            <TextBlock Grid.Column="2" FontWeight="Bold" Foreground="{DynamicResource Brush.FG2}" Text="{Binding Unstaged, Converter={x:Static c:ListConverters.ToCount}}"/>
+            <TextBlock Grid.Column="2" FontWeight="Bold" Foreground="{DynamicResource Brush.FG2}" Text="{Binding UnstagedChangesCount, StringFormat='({0})'}"/>
             <v:LoadingIcon Grid.Column="3" Width="14" Height="14" Margin="8,0,0,0" IsVisible="{Binding IsStaging}"/>
+            <v:LoadingIcon Grid.Column="3" Width="14" Height="14" Margin="8,0,0,0" IsVisible="{Binding IsRefreshing}"/>
 
-            <ToggleButton Grid.Column="5"
+            <ToggleButton Grid.Column="6"
+                          Classes="toggle_showlocks"
+                          Width="26" Height="14"
+                          ToolTip.Tip="{DynamicResource Text.WorkingCopy.ShowLocks}"
+                          IsChecked="{Binding ShowLocks, Mode=TwoWay}"/>
+
+            <ToggleButton Grid.Column="7"
                           Classes="toggle_listfiles"
                           Width="26" Height="14"
-                          ToolTip.Tip="{DynamicResource Text.WorkingCopy.ListFiles}"
-                          IsChecked="{Binding ListFiles, Mode=TwoWay}"/>
-            <Button Grid.Column="6"
+                          ToolTip.Tip="{DynamicResource Text.WorkingCopy.ListLocalFiles}"
+                          IsChecked="{Binding ListLocalFiles, Mode=TwoWay}"/>
+
+            <Button Grid.Column="8"
                     Classes="icon_button"
                     Width="26" Height="14"
                     Padding="0"
@@ -46,12 +54,14 @@
                     Command="{Binding OpenAssumeUnchanged}">
               <Path Width="14" Height="14" Data="{StaticResource Icons.File.Ignore}"/>
             </Button>
-            <ToggleButton Grid.Column="7"
+
+            <ToggleButton Grid.Column="9"
                           Classes="toggle_untracked"
                           Width="26" Height="14"
                           ToolTip.Tip="{DynamicResource Text.WorkingCopy.IncludeUntracked}"
                           IsChecked="{Binding IncludeUntracked, Mode=TwoWay}"/>
-            <Button Grid.Column="8"
+
+            <Button Grid.Column="10"
                     Classes="icon_button"
                     Width="26" Height="14"
                     Padding="0"
@@ -64,7 +74,8 @@
               </ToolTip.Tip>
               <Path Width="14" Height="14" Margin="0,6,0,0" Data="{StaticResource Icons.Down}"/>
             </Button>
-            <Button Grid.Column="9"
+
+            <Button Grid.Column="11"
                     Classes="icon_button"
                     Width="26" Height="14"
                     Padding="0"
@@ -72,10 +83,12 @@
                     Command="{Binding StageAll}">
               <Path Width="14" Height="14" Data="{StaticResource Icons.DoubleDown}"/>
             </Button>
-            <v:ChangeViewModeSwitcher Grid.Column="10"
+
+            <v:ChangeViewModeSwitcher Grid.Column="12"
                                       Width="26" Height="14"
                                       Margin="0,1,0,0"
                                       ViewMode="{Binding Source={x:Static vm:Preference.Instance}, Path=UnstagedChangeViewMode, Mode=TwoWay}"/>
+
           </Grid>
         </Border>
 

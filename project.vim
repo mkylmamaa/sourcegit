@@ -1,10 +1,10 @@
 "let g:openAIPath = ""
 
-let g:buildCommandDebug = "./build.sh"
-let g:buildCommandRelease = "./build.sh"
+let g:buildCommandDebug = "./build.sh Debug"
+let g:buildCommandRelease = "./build.sh Release"
 
-let g:projectDebugTargetDebug = "bin/SourceGit"
-let g:projectDebugTargetRelease = "bin/SourceGit"
+let g:projectDebugTargetDebug = "bin/osx-arm64/Debug/SourceGit"
+let g:projectDebugTargetRelease = "bin/osx/arm64/Release/SourceGit"
 
 let g:projectRunArgsDebug = ""
 let g:projectRunArgsRelease = ""

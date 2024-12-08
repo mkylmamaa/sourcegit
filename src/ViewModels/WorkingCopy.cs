@@ -46,14 +46,27 @@ namespace SourceGit.ViewModels
             }
         }
 
-        public bool ListFiles
+        public bool ListLocalFiles
         {
-            get => _repo.ListFiles;
+            get => _repo.ListLocalFiles;
             set
             {
-                if (_repo.ListFiles != value)
+                if (_repo.ListLocalFiles != value)
                 {
-                    _repo.ListFiles = value;
+                    _repo.ListLocalFiles = value;
+                    OnPropertyChanged();
+                }
+            }
+        }
+
+        public bool ShowLocks
+        {
+            get => _repo.ShowLocks;
+            set
+            {
+                if (_repo.ShowLocks != value)
+                {
+                    _repo.ShowLocks = value;
                     OnPropertyChanged();
                 }
             }
@@ -79,6 +92,12 @@ namespace SourceGit.ViewModels
         {
             get => _inProgressContext;
             private set => SetProperty(ref _inProgressContext, value);
+        }
+
+        public bool IsRefreshing
+        {
+            get => _isRefreshing;
+            private set => SetProperty(ref _isRefreshing, value);
         }
 
         public bool IsStaging
@@ -136,6 +155,20 @@ namespace SourceGit.ViewModels
         {
             get => _unstaged;
             private set => SetProperty(ref _unstaged, value);
+        }
+
+        public int UnstagedChangesCount
+        {
+            get
+            {
+                var count = 0;
+                foreach (var c in _unstaged)
+                {
+                    if (c.WorkTree != Models.ChangeState.None)
+                        count++;
+                }
+                return count;
+            }
         }
 
         public List<Models.Change> Staged
@@ -211,6 +244,14 @@ namespace SourceGit.ViewModels
         public WorkingCopy(Repository repo)
         {
             _repo = repo;
+            _repo.PropertyChanged += (_, _) => {
+                OnRepoRefreshing();
+            };
+        }
+
+        private void OnRepoRefreshing()
+        {
+            IsRefreshing = _repo.RefreshingViewsCount > 0;
         }
 
         public void Cleanup()
@@ -265,7 +306,10 @@ namespace SourceGit.ViewModels
                 return;
             }
 
-            _cached = changes;
+            _cached = new List<Models.Change>();
+            foreach (var c in changes)
+                _cached.Add((Models.Change)c.Clone());
+
             _count = _cached.Count;
 
             var lastSelectedUnstaged = new HashSet<string>();
@@ -284,9 +328,10 @@ namespace SourceGit.ViewModels
             var unstaged = new List<Models.Change>();
             var selectedUnstaged = new List<Models.Change>();
             var hasConflict = false;
+            var listLocalFiles = _repo.ListLocalFiles;
             foreach (var c in changes)
             {
-                //if (c.WorkTree != Models.ChangeState.None)
+                if (c.WorkTree != Models.ChangeState.None || listLocalFiles)
                 {
                     unstaged.Add(c);
                     hasConflict |= c.IsConflit;
@@ -369,7 +414,13 @@ namespace SourceGit.ViewModels
 
         public void StageAll()
         {
-            StageChanges(_unstaged, null);
+            var stage = new List<Models.Change>();
+            foreach (var c in _unstaged)
+            {
+                if (c.WorkTree != Models.ChangeState.None)
+                    stage.Add(c);
+            }
+            StageChanges(stage, null);
         }
 
         public async void StageChanges(List<Models.Change> changes, Models.Change next)
@@ -745,7 +796,10 @@ namespace SourceGit.ViewModels
                             {
                                 var succ = await Task.Run(() => new Commands.LFS(_repo.FullPath).Track(filename, true));
                                 if (succ)
+                                {
+                                    _repo.MarkWorkingCopyDirtyManually();
                                     App.SendNotification(_repo.FullPath, $"Tracking file named {filename} successfully!");
+                                }
 
                                 e.Handled = true;
                             };
@@ -759,7 +813,10 @@ namespace SourceGit.ViewModels
                                 {
                                     var succ = await Task.Run(() => new Commands.LFS(_repo.FullPath).Track("*" + extension));
                                     if (succ)
+                                    {
+                                        _repo.MarkWorkingCopyDirtyManually();
                                         App.SendNotification(_repo.FullPath, $"Tracking all *{extension} files successfully!");
+                                    }
 
                                     e.Handled = true;
                                 };
@@ -779,7 +836,10 @@ namespace SourceGit.ViewModels
                             {
                                 var succ = await Task.Run(() => new Commands.LFS(_repo.FullPath).Lock(_repo.Remotes[0].Name, change.Path));
                                 if (succ)
+                                {
+                                    _repo.MarkWorkingCopyDirtyManually();
                                     App.SendNotification(_repo.FullPath, $"Lock file \"{change.Path}\" successfully!");
+                                }
 
                                 e.Handled = true;
                             };
@@ -795,7 +855,10 @@ namespace SourceGit.ViewModels
                                 {
                                     var succ = await Task.Run(() => new Commands.LFS(_repo.FullPath).Lock(remoteName, change.Path));
                                     if (succ)
+                                    {
+                                        _repo.MarkWorkingCopyDirtyManually();
                                         App.SendNotification(_repo.FullPath, $"Lock file \"{change.Path}\" successfully!");
+                                    }
 
                                     e.Handled = true;
                                 };
@@ -814,7 +877,10 @@ namespace SourceGit.ViewModels
                             {
                                 var succ = await Task.Run(() => new Commands.LFS(_repo.FullPath).Unlock(_repo.Remotes[0].Name, change.Path, false));
                                 if (succ)
+                                {
+                                    _repo.MarkWorkingCopyDirtyManually();
                                     App.SendNotification(_repo.FullPath, $"Unlock file \"{change.Path}\" successfully!");
+                                }
 
                                 e.Handled = true;
                             };
@@ -830,7 +896,10 @@ namespace SourceGit.ViewModels
                                 {
                                     var succ = await Task.Run(() => new Commands.LFS(_repo.FullPath).Unlock(remoteName, change.Path, false));
                                     if (succ)
+                                    {
+                                        _repo.MarkWorkingCopyDirtyManually();
                                         App.SendNotification(_repo.FullPath, $"Unlock file \"{change.Path}\" successfully!");
+                                    }
 
                                     e.Handled = true;
                                 };
@@ -1124,7 +1193,10 @@ namespace SourceGit.ViewModels
                         {
                             var succ = await Task.Run(() => new Commands.LFS(_repo.FullPath).Lock(_repo.Remotes[0].Name, change.Path));
                             if (succ)
+                            {
+                                _repo.MarkWorkingCopyDirtyManually();
                                 App.SendNotification(_repo.FullPath, $"Lock file \"{change.Path}\" successfully!");
+                            }
 
                             e.Handled = true;
                         };
@@ -1140,7 +1212,10 @@ namespace SourceGit.ViewModels
                             {
                                 var succ = await Task.Run(() => new Commands.LFS(_repo.FullPath).Lock(remoteName, change.Path));
                                 if (succ)
+                                {
+                                    _repo.MarkWorkingCopyDirtyManually();
                                     App.SendNotification(_repo.FullPath, $"Lock file \"{change.Path}\" successfully!");
+                                }
 
                                 e.Handled = true;
                             };
@@ -1159,7 +1234,10 @@ namespace SourceGit.ViewModels
                         {
                             var succ = await Task.Run(() => new Commands.LFS(_repo.FullPath).Unlock(_repo.Remotes[0].Name, change.Path, false));
                             if (succ)
+                            {
+                                _repo.MarkWorkingCopyDirtyManually();
                                 App.SendNotification(_repo.FullPath, $"Unlock file \"{change.Path}\" successfully!");
+                            }
 
                             e.Handled = true;
                         };
@@ -1175,7 +1253,10 @@ namespace SourceGit.ViewModels
                             {
                                 var succ = await Task.Run(() => new Commands.LFS(_repo.FullPath).Unlock(remoteName, change.Path, false));
                                 if (succ)
+                                {
+                                    _repo.MarkWorkingCopyDirtyManually();
                                     App.SendNotification(_repo.FullPath, $"Unlock file \"{change.Path}\" successfully!");
+                                }
 
                                 e.Handled = true;
                             };
@@ -1526,11 +1607,11 @@ namespace SourceGit.ViewModels
 
             var oldSet = new HashSet<string>();
             foreach (var c in old)
-                oldSet.Add($"{c.Path}\n{c.WorkTree}\n{c.Index}");
+                oldSet.Add($"{c.Path}\n{c.WorkTree}\n{c.Index}\n{c.LockedBy}");
 
             foreach (var c in cur)
             {
-                if (!oldSet.Contains($"{c.Path}\n{c.WorkTree}\n{c.Index}"))
+                if (!oldSet.Contains($"{c.Path}\n{c.WorkTree}\n{c.Index}\n{c.LockedBy}"))
                     return true;
             }
 
@@ -1558,6 +1639,7 @@ namespace SourceGit.ViewModels
 
         private Repository _repo = null;
         private bool _isLoadingData = false;
+        private bool _isRefreshing = false;
         private bool _isStaging = false;
         private bool _isUnstaging = false;
         private bool _isCommitting = false;

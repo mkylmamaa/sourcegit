@@ -18,6 +18,16 @@ namespace SourceGit.ViewModels
 {
     public class Repository : ObservableObject, Models.IRepository
     {
+        public int RefreshingViewsCount
+        {
+            get => _refreshingViewsCount;
+            set
+            {
+                _refreshingViewsCount = value;
+                OnPropertyChanged(nameof(RefreshingViewsCount));
+            }
+        }
+
         public string FullPath
         {
             get => _fullpath;
@@ -214,13 +224,23 @@ namespace SourceGit.ViewModels
             }
         }
 
-        public bool ListFiles
+        public bool ListLocalFiles
         {
-            get => _listFiles;
+            get => _listLocalFiles;
             set
             {
-                if (SetProperty(ref _listFiles, value))
+                if (SetProperty(ref _listLocalFiles, value))
                     Task.Run(RefreshWorkingCopyChanges);
+            }
+        }
+
+        public bool ShowLocks
+        {
+            get => _showLocks;
+            set
+            {
+                if (SetProperty(ref _showLocks, value))
+                    Task.Run(RefreshWorkingCopyLocks);
             }
         }
 
@@ -484,6 +504,7 @@ namespace SourceGit.ViewModels
             Task.Run(RefreshSubmodules);
             Task.Run(RefreshWorktrees);
             Task.Run(RefreshWorkingCopyChanges);
+            Task.Run(RefreshWorkingCopyLocks);
             Task.Run(RefreshStashes);
         }
 
@@ -663,6 +684,7 @@ namespace SourceGit.ViewModels
                 Task.Run(RefreshBranches);
                 Task.Run(RefreshCommits);
                 Task.Run(RefreshWorkingCopyChanges);
+                Task.Run(RefreshWorkingCopyLocks);
                 Task.Run(RefreshWorktrees);
             }
             else
@@ -674,9 +696,14 @@ namespace SourceGit.ViewModels
         public void MarkWorkingCopyDirtyManually()
         {
             if (_watcher == null)
+            {
                 Task.Run(RefreshWorkingCopyChanges);
+                Task.Run(RefreshWorkingCopyLocks);
+            }
             else
+            {
                 _watcher.MarkWorkingCopyDirtyManually();
+            }
         }
 
         public void MarkFetched()
@@ -888,6 +915,11 @@ namespace SourceGit.ViewModels
             foreach (var file in dict.Values)
                 merged.Add(file);
 
+            merged.Sort((l, r) =>
+            {
+                return string.Compare(l.Path, r.Path, StringComparison.Ordinal);
+            });
+
             return merged;
         }
 
@@ -896,24 +928,72 @@ namespace SourceGit.ViewModels
             if (_workingCopy == null)
                 return;
 
-            var merged = null as List<Models.Change>;
+            ++RefreshingViewsCount;
 
-            if (_listFiles) 
+            if (_listLocalFiles) 
             {
                 var files = new Commands.ListLocalFiles(_fullpath).Result();
                 var changes = new Commands.QueryLocalChanges(_fullpath, _includeUntracked).Result();
-                merged = MergeFileLists(files, changes);
+                _visibleChanges = MergeFileLists(files, changes);
             }
             else
             {
-                merged = new Commands.QueryLocalChanges(_fullpath, _includeUntracked).Result();
+                _visibleChanges = new Commands.QueryLocalChanges(_fullpath, _includeUntracked).Result();
             }
 
-            _workingCopy.SetData(merged);
+            foreach (var lfsLock in _visibleLocks)
+            {
+                var change = _visibleChanges.Find(x => x.Path == lfsLock.File);
+                if (change != null)
+                    change.LockedBy = lfsLock.User;
+            }
+
+            --RefreshingViewsCount;
+
+            _workingCopy.SetData(_visibleChanges);
 
             Dispatcher.UIThread.Invoke(() =>
             {
-                LocalChangesCount = merged.Count;
+                int changesCount = 0;
+                foreach (var change in _visibleChanges)
+                {
+                    if (change.HasChanged)
+                        ++changesCount;
+                }
+                LocalChangesCount = changesCount;
+                OnPropertyChanged(nameof(InProgressContext));
+            });
+        }
+
+        public void RefreshWorkingCopyLocks()
+        {
+            ++RefreshingViewsCount;
+
+            if (_showLocks && _remotes.Count > 0)
+            {
+                _visibleLocks = new Commands.LFS(_fullpath).Locks(_remotes[0].Name);
+            }
+            else
+            {
+                _visibleLocks.Clear();
+            }
+
+            foreach (var change in _visibleChanges)
+                change.LockedBy = "";
+
+            foreach (var lfsLock in _visibleLocks)
+            {
+                var change = _visibleChanges.Find(x => x.Path == lfsLock.File);
+                if (change != null)
+                    change.LockedBy = lfsLock.User;
+            }
+
+            --RefreshingViewsCount;
+
+            _workingCopy.SetData(_visibleChanges);
+
+            Dispatcher.UIThread.Invoke(() =>
+            {
                 OnPropertyChanged(nameof(InProgressContext));
             });
         }
@@ -2282,8 +2362,13 @@ namespace SourceGit.ViewModels
         private List<Models.Submodule> _submodules = new List<Models.Submodule>();
         private List<Models.Submodule> _visibleSubmodules = new List<Models.Submodule>();
 
+        private bool _showLocks = false;
+        private List<Models.LFSLock> _visibleLocks = new List<Models.LFSLock>();
+        private List<Models.Change> _visibleChanges = new List<Models.Change>();
+        private int _refreshingViewsCount = 0;
+
         private bool _includeUntracked = true;
-        private bool _listFiles = false;
+        private bool _listLocalFiles = false;
         private Models.Commit _searchResultSelectedCommit = null;
         private Timer _autoFetchTimer = null;
         private DateTime _lastFetchTime = DateTime.MinValue;
